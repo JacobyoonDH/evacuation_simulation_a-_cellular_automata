@@ -1,82 +1,134 @@
-import numpy as np
 from pedestrian import *
 import numpy as np
 import matplotlib.pyplot as plt
-from pedestrian import *
-
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-
-import numpy as np
-import matplotlib.pyplot as plt
+import os
+import time
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 
-def plot_congestion_with_context(grid, x_coords, y_coords, congestion_grid, area_gdf, buildings_gdf, evacuation_target_cells, pedestrians, step, title="Dynamic Congestion Grid"):
+def plot_congestion_with_context222_past_ver(
+    grid, x_coords, y_coords, congestion_grid, flood_cells,
+    area_gdf, buildings_gdf, evacuee_area, pedestrians,
+    step, save_base_path, title="Congestion and Flood Visualization"
+):
     """
-    건물, 도보 가능 지역, 대피 목표와 함께 혼잡도를 시각화하는 함수.
-    
+    혼잡도와 보행자 현재 위치를 시각화.
+
     Parameters:
         grid (numpy.ndarray): 격자 데이터
-        x_coords (numpy.ndarray): X 좌표 배열
-        y_coords (numpy.ndarray): Y 좌표 배열
-        congestion_grid (numpy.ndarray): 혼잡도 그리드
-        area_gdf (GeoDataFrame): 도보 가능 지역 GeoDataFrame
-        buildings_gdf (GeoDataFrame): 건물 GeoDataFrame
-        evacuation_target_cells (list of tuples): 대피 목표 셀의 인덱스 리스트
-        pedestrians (list): 보행자 객체 리스트
+        x_coords (numpy.ndarray): X 좌표
+        y_coords (numpy.ndarray): Y 좌표
+        congestion_grid (numpy.ndarray): 혼잡도 데이터
+        flood_cells (numpy.ndarray): 침수 데이터
+        area_gdf (GeoDataFrame): 이동 가능한 영역
+        buildings_gdf (GeoDataFrame): 건물 데이터
+        evacuee_area (GeoDataFrame): 대피소 영역
+        pedestrians (list): 보행자 객체
         step (int): 현재 스텝
-        title (str): 그래프 제목
+        save_base_path (str): 결과 저장 경로
+        title (str): 시각화 제목
     """
-    plt.figure(figsize=(16, 12))
-    ax = plt.gca()
+    fig, ax = plt.subplots(figsize=(16, 10))
+    plt.title(f"{title} (Step {step})")
 
-    # 도보 이동 가능 지역 시각화
-    area_gdf.plot(ax=ax, color='lightgreen', edgecolor='white', alpha=0.7, label='Walkable Area')
+    # 혼잡도 히트맵 추가
+    congestion_map = ax.imshow(
+        congestion_grid, cmap="Reds", origin="lower",
+        extent=[x_coords[0], x_coords[-1], y_coords[0], y_coords[-1]],
+        alpha=0.7
+    )
+    cbar_congestion = plt.colorbar(congestion_map, ax=ax, fraction=0.03, pad=0.04)
+    cbar_congestion.set_label("Congestion Level")
 
-    # 건물 시각화
-    buildings_gdf.plot(ax=ax, color='black', alpha=0.9, label='Buildings')
+    # 이동 가능한 영역 및 건물 시각화
+    area_gdf.plot(ax=ax, color='lightgray', edgecolor='black', alpha=0.5, label="Walkable Area")
+    buildings_gdf.plot(ax=ax, color='black', alpha=0.7, label="Buildings")
+    evacuee_area.plot(ax=ax, color='orange', alpha=0.5, label="Evacuation Areas")
 
-    plt.imshow(congestion_grid, cmap='hot', origin='upper',
-               extent=[x_coords[0], x_coords[-1], y_coords[-1], y_coords[0]], vmin=0, vmax=5, alpha=0.6)
-
-    # 대피 목표 셀 시각화 (주황색 'X' 마커)
-    for i, j in evacuation_target_cells:
-        plt.scatter(x_coords[j], y_coords[i], color='orange', s=50, marker='x', label='Evacuation Target' if 'Evacuation Target' not in ax.get_legend_handles_labels()[1] else "")
-
-    # 보행자의 현재 위치 시각화 (작은 빨간 점)
-    for pedestrian in pedestrians:
-        ped_x = x_coords[pedestrian.position[1]]
-        ped_y = y_coords[pedestrian.position[0]]
-        plt.scatter(ped_x, ped_y, color='red', s=10, marker='.', label='Pedestrian' if 'Pedestrian' not in ax.get_legend_handles_labels()[1] else "")
-
-    # 컬러바 설정 (혼잡도 레벨 표시)
-    plt.colorbar(label='Congestion Level (≥3)', shrink=0.8)
-
-    # 범례 설정
-    legend_handles = [
-        mpatches.Patch(color='lightgreen', label='Walkable Area'),
-        mpatches.Patch(color='black', label='Buildings'),
-        mpatches.Patch(color='orange', label='Evacuation Target'),
-        mpatches.Patch(color='red', label='Pedestrian')
+    # 보행자 현재 위치 시각화 (goal_reached 제외)
+    current_positions = [
+        (ped.position[1], ped.position[0]) for ped in pedestrians if not ped.goal_reached
     ]
-    plt.legend(handles=legend_handles, loc='upper right')
+    ax.scatter(
+        [x_coords[j] for j, i in current_positions],
+        [y_coords[i] for j, i in current_positions],
+        color='blue', s=30, label="Pedestrian Current Positions"
+    )
 
-    # 그래프 제목 및 라벨
-    plt.title(f"{title} at Step {step}")
+    # 축 및 범례 설정
     plt.xlabel("X Coordinate (meters in EPSG:5181)")
     plt.ylabel("Y Coordinate (meters in EPSG:5181)")
+    ax.legend(loc="upper right")
 
-    plt.show()
+    # 결과 저장
+    save_path = f"{save_base_path}/congestion_with_pedestrians_step_{step}.png"
+    plt.savefig(save_path, dpi=300)
+    plt.close(fig)
 
+def plot_congestion_with_context(
+    grid, x_coords, y_coords, congestion_grid, flood_cells,
+    area_gdf, buildings_gdf, evacuee_area, pedestrians,
+    step, save_base_path, title="Congestion and Flood Visualization"
+):
+    """
+    혼잡도와 보행자 현재 위치를 시각화.
+    """
+    fig, ax = plt.subplots(figsize=(16, 10))
+    plt.title(f"{title} (Step {step})")
 
+    # 혼잡도 히트맵 추가 (컬러맵 및 범위 고정)
+    congestion_map = ax.imshow(
+        congestion_grid, cmap="coolwarm", origin="lower",
+        extent=[x_coords[0], x_coords[-1], y_coords[0], y_coords[-1]],
+        alpha=0.8, vmin=0, vmax=10
+    )
+    cbar_congestion = plt.colorbar(congestion_map, ax=ax, fraction=0.03, pad=0.04)
+    cbar_congestion.set_label("Congestion Level")
 
-import numpy as np
+    # 혼잡도 값 텍스트 표시
+    for i in range(congestion_grid.shape[0]):
+        for j in range(congestion_grid.shape[1]):
+            value = congestion_grid[i, j]
+            if value > 0:  # 혼잡도가 0보다 큰 경우만 표시
+                ax.text(
+                    x_coords[j], y_coords[i], str(value),
+                    color="black", fontsize=8, ha="center", va="center"
+                )
 
+    # 이동 가능한 영역 및 건물 시각화
+    area_gdf.plot(ax=ax, color='lightgray', edgecolor='black', alpha=0.5, label="Walkable Area")
+    buildings_gdf.plot(ax=ax, color='black', alpha=0.7, label="Buildings")
+    evacuee_area.plot(ax=ax, color='orange', alpha=0.5, label="Evacuation Areas")
 
+    # 보행자 현재 위치 시각화 (goal_reached 제외)
+    current_positions = [
+        (ped.position[1], ped.position[0]) for ped in pedestrians if not ped.goal_reached
+    ]
+    ax.scatter(
+        [x_coords[j] for j, i in current_positions],
+        [y_coords[i] for j, i in current_positions],
+        color='blue', s=30, label="Pedestrian Current Positions"
+    )
+
+    # 축 및 범례 설정
+    plt.xlabel("X Coordinate (meters in EPSG:5181)")
+    plt.ylabel("Y Coordinate (meters in EPSG:5181)")
+    ax.legend(loc="upper right")
+
+    # 결과 저장
+    save_path = f"{save_base_path}/congestion_with_pedestrians_step_{step}.png"
+    plt.savefig(save_path, dpi=300)
+    plt.close(fig)
+
+import matplotlib.pyplot as plt
 import numpy as np
 from pedestrian import *
-import matplotlib.pyplot as plt
-def run_simulation(grid, pedestrians, evacuation_target_cells, x_coords, y_coords, area_gdf, buildings_gdf, steps=100):
+import os
+def run_simulation(
+    grid, pedestrians, evacuation_target_cells, x_coords, y_coords, 
+    area_gdf, buildings_gdf, steps, evacuee_area, save_path, flood_cells
+):
     """
     보행자들의 이동 시뮬레이션을 실행하고 대피 동선을 기록합니다.
 
@@ -84,55 +136,86 @@ def run_simulation(grid, pedestrians, evacuation_target_cells, x_coords, y_coord
         dynamic_congestion_grid (numpy.ndarray): 최종 일시적 혼잡도 그리드
         accumulated_congestion_grid (numpy.ndarray): 최종 누적 혼잡도 그리드
         evacuation_details (list): 각 보행자의 대피 경로, behavior, type, 소요시간, 도착 여부, 목표 기록
-        congestion_timestamps (list): 혼잡도가 3 이상인 셀이 발생한 타임스텝 리스트
+        max_congestion_per_step (list): 각 타임스텝별 최대 혼잡도 값
     """
     # 혼잡도 그리드 초기화
     dynamic_congestion_grid = np.zeros_like(grid, dtype=int)
     accumulated_congestion_grid = np.zeros_like(grid, dtype=int)
     evacuation_details = []
-    congestion_timestamps = []
+    max_congestion_per_step = []  # 각 타임스텝별 최대 혼잡도를 저장할 리스트
+    saved_dynamic_congestion_grids = []
 
-    # 초기 보행자 위치에 혼잡도 설정
+    # 초기 침수 값 계산
+    initial_flood_cells = flood_cells - (flood_cells *2600/ 3600)  # 초기 16.67분 전 침수심 계산
+    final_flood_cells = flood_cells
+
+    # 초기 보행자 위치에 혼잡도 설정 및 path_congest 초기화
     for pedestrian in pedestrians:
-        dynamic_congestion_grid[pedestrian.position] += 1
+        rounded_position = tuple(np.round(pedestrian.position).astype(int))
+        dynamic_congestion_grid[rounded_position] += 1
         pedestrian.total_distance = 0  # 누적 이동 거리 초기화
-
-    # 누적 혼잡도에 초기 혼잡도를 반영
-    accumulated_congestion_grid += dynamic_congestion_grid
+        pedestrian.path_congest = [rounded_position]  # path_congest 초기화
 
     for step in range(steps):
-        print(f"\n--- Step {step + 1} ---")
+        #if (step + 1) % 50 == 0:
+            #print(f"\nStep {step + 1}/{steps}")
+    
+        # 침수심 업데이트
+        flood_cells = initial_flood_cells + (final_flood_cells - initial_flood_cells) * (step / steps)
 
-        # 보행자 이동 및 목표 도달 여부 확인
-        for idx, pedestrian in enumerate(pedestrians):
-            old_position = pedestrian.position
+        # 보행자 이동
+        old_positions = []  # 보행자들의 이전 위치 기록
+        new_positions = []  # 보행자들의 새로운 위치 기록
+        for pedestrian in pedestrians:
+            rounded_position = tuple(np.round(pedestrian.position).astype(int))  # 위치 계산
+            if pedestrian.goal_reached:
+                # 목표 도달한 보행자의 위치에서 혼잡도 감소
+                if dynamic_congestion_grid[rounded_position] > 0:
+                    dynamic_congestion_grid[rounded_position] -= 1
+                continue  # 목표 도달한 보행자는 이동하지 않음
+        
+            old_positions.append(pedestrian.position)  # 이전 위치 기록
 
             # 보행자 이동
-            pedestrian.move(grid, dynamic_congestion_grid, accumulated_congestion_grid, evacuation_target_cells, pedestrians)
-            new_position = pedestrian.position
+            pedestrian.move(
+                grid=grid,
+                dynamic_congestion_grid=dynamic_congestion_grid,
+                accumulated_congestion_grid=accumulated_congestion_grid,
+                evacuation_target_set=evacuation_target_cells,
+                all_pedestrians=pedestrians,
+                shelter_geometries=evacuee_area,
+                flood_cells=flood_cells,
+                current_step=step,
+                x_coords=x_coords,
+                y_coords=y_coords
+            )
 
-            # 누적 이동 거리 업데이트
-            pedestrian.total_distance += np.linalg.norm(np.array(new_position) - np.array(old_position))
-            pedestrian.real_path.append(old_position)
-            # 혼잡도 그리드 갱신
+            new_positions.append(pedestrian.position)  # 새로운 위치 기록
+            if pedestrian.goal_reached != True and pedestrian.goal == pedestrian.position:
+                pedestrian.goal_reached = True
+                pedestrian.time_steps.append(step)
+        # 혼잡도 격자 업데이트
+        for old_position, new_position in zip(old_positions, new_positions):
             if old_position != new_position:
-                dynamic_congestion_grid[old_position] -= 1
-                dynamic_congestion_grid[new_position] += 1
+                if dynamic_congestion_grid[old_position] > 0:
+                    dynamic_congestion_grid[old_position] -= 1  # 이전 위치에서 혼잡도 감소
+                dynamic_congestion_grid[new_position] += 1  # 새로운 위치에서 혼잡도 증가
+                accumulated_congestion_grid[new_position] += 1  # 누적 혼잡도 갱신
 
-        # 혼잡도가 3 이상인 셀이 있는지 확인하고 시각화
-#        if np.any(dynamic_congestion_grid >= 3):
-#            congestion_timestamps.append(step + 1)
-#            plot_congestion_with_context(grid, x_coords, y_coords, dynamic_congestion_grid, area_gdf, buildings_gdf, evacuation_target_cells, pedestrians, step, title="Dynamic Congestion Grid")
-
-        # 누적 혼잡도 갱신
-        accumulated_congestion_grid += dynamic_congestion_grid
+        # 각 타임스텝의 최대 혼잡도 값 저장
+        max_congestion_per_step.append(dynamic_congestion_grid.max())
+#        if dynamic_congestion_grid.max() > 8 and (step + 1) % 10 == 0:
+#            saved_dynamic_congestion_grids.append(step)
+#            plot_congestion_with_context(
+#                grid, x_coords, y_coords, dynamic_congestion_grid, flood_cells,
+#                area_gdf, buildings_gdf, evacuee_area, pedestrians,
+#                step, save_path, title="Congestion and Flood Visualization"
+#            )
 
         # 모든 보행자 대피 완료 시 조기 종료
         if all(p.goal_reached for p in pedestrians):
             print(f"All pedestrians evacuated by step {step + 1}.")
             break
 
-    # 최종 누적 혼잡도 시각화
-    plot_congestion_with_context(grid, x_coords, y_coords, accumulated_congestion_grid, area_gdf, buildings_gdf, evacuation_target_cells, pedestrians, step + 1, title="Final Accumulated Congestion Grid")
-
-    return dynamic_congestion_grid, accumulated_congestion_grid, evacuation_details, congestion_timestamps
+    # 결과 반환
+    return dynamic_congestion_grid, accumulated_congestion_grid, evacuation_details, max_congestion_per_step

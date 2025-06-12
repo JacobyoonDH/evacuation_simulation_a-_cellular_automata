@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'Malgun Gothic'
 
 # 데이터 경로 설정
-area_shp_path = r"C:\Users\doohu\Desktop\대학원\디트\1106_디트_최종대상지_4326\신규대상지_도보이동가능지역.shp"
-buildings_shp_path = r"C:\Users\doohu\Desktop\대학원\디트\1106_디트_최종대상지_4326\신규대상지_건물지역_대피소제외.shp"
-special_area_shp_path = r"C:\Users\doohu\Desktop\대학원\디트\디트파이썬코드\시장영역.shp"
-evacuation_target_area_shp_path = r"C:\Users\doohu\Desktop\대학원\디트\1106_디트_최종대상지_4326\대피대상지_shp_point아님.shp"
-creation_area_path = r"C:\Users\doohu\Desktop\대학원\디트\1106_디트_최종대상지_4326\agent_초기위치형성용.shp"
+area_shp_path = r"C:\Users\doohu\Desktop\대학원\대피 시뮬레이션_최종코드\데이터\신규대상지_도보이동가능지역.shp"
+buildings_shp_path = r"C:\Users\doohu\Desktop\대학원\대피 시뮬레이션_최종코드\데이터\대상지_건물.shp"
+special_area_shp_path = r"C:\Users\doohu\Desktop\대학원\대피 시뮬레이션_최종코드\데이터\시장영역.shp"
+evacuation_target_area_shp_path = r"C:\Users\doohu\Desktop\대학원\대피 시뮬레이션_최종코드\데이터\대피소_shp.shp"
+creation_area_path = r"C:\Users\doohu\Desktop\대학원\대피 시뮬레이션_최종코드\데이터\agent생성용.shp"
 # GeoDataFrame 불러오기 및 좌표계 변환
 target_crs = "EPSG:5181"
 area_gdf = gpd.read_file(area_shp_path).to_crs(target_crs)

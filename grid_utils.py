@@ -3,7 +3,7 @@ from shapely.geometry import Point, box
 from scipy.ndimage import label
 from shapely.geometry import Point, box
 
-def get_evacuation_target_cells(grid, x_coords, y_coords, evacuation_target_area_gdf, resolution=3):
+def get_evacuation_target_cells(grid, x_coords, y_coords, evacuation_target_area_gdf, resolution=1):
     """
     격자에서 대피 목표 영역과 교차하는 셀을 추출합니다.
 
@@ -56,7 +56,7 @@ def remove_disconnected_cells(grid):
 
 
 
-def create_grid(area_gdf, buildings_gdf, resolution=3):
+def create_grid(area_gdf, buildings_gdf, resolution=1):
     """
     격자를 생성하고 이동 불가능한 영역을 표시합니다.
 
